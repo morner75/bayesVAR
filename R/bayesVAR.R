@@ -64,6 +64,9 @@ VAR_bayes <- function(data, p, exos=colnames(data)[ncol(data)], N=1500, warmup=5
 }
 
 
+plot <- function(model,...) UseMethod("plot")
+plot.default <- function(model,...) base::plot(model)
+
 #' Figures from Bayesian VAR model
 #
 #' provide figures from Bayesian VAR methods

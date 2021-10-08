@@ -1,3 +1,10 @@
+# S3 generic functions -------------------------------------------------------------------
+
+plot <- function(model,...) UseMethod("plot")
+plot.default <- function(model,...) base::plot(model)
+
+predict <- function(model,...) UseMethod("predict")
+predict.default <- function(model,...) stats::predict.lm(model)
 
 
 # helper functions between different forms of coefficient values -------------------------

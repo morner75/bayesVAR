@@ -46,21 +46,22 @@ VAR_OLS <- function(data, p, exos=colnames(data)[ncol(data)], confint=0.95){
 #
 #' provide an impulse-response function and its plot
 #' @param model a object
+#' @param ... extra arguments
 #' @return impulse-response function and data to be used in the plot
 #' @export
-impulse_response <- function(model,...)
-  UseMethod("impulse_response")
+impulse_response <- function(model,...)   UseMethod("impulse_response")
 
-#' Impulse-Response function of estimated VAR model
-#
-#' provide an impulse-response function and its plot
-#' @param model OLS object from \code{VAR_OLS} function
+#'#' @describeIn impulse_response
+impulse_response.default <- function(mdoel,...) impulse_response(model,...)
+
+
+#' @describeIn impulse_response
+#'
 #' @param variable a character, a variable which gives a shock
 #' @param period a integer, time period
 #' @param p a integer, time lags of endogenous variables
 #' @param type shock to be used
 #' @param ncol.fig a integer, number of figures plotted in a row
-#' @return impulse-response function and data to be used in the plot
 #' @export
 impulse_response.OLS <- function(model, p, variable, period,
                                     type=c("origin","structural"), ncol.fig=2){

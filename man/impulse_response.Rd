@@ -2,18 +2,47 @@
 % Please edit documentation in R/VAR_OLS.R
 \name{impulse_response}
 \alias{impulse_response}
+\alias{impulse_response.OLS}
 \title{Impulse-Response function of estimated VAR model
 provide an impulse-response function and its plot}
 \usage{
 impulse_response(model, ...)
+
+\method{impulse_response}{OLS}(
+  model,
+  p,
+  variable,
+  period,
+  type = c("origin", "structural"),
+  ncol.fig = 2
+)
 }
 \arguments{
-\item{model}{a object}
+\item{model}{OLS object from \code{VAR_OLS} function}
+
+\item{...}{extra arguments}
+
+\item{p}{a integer, time lags of endogenous variables}
+
+\item{variable}{a character, a variable which gives a shock}
+
+\item{period}{a integer, time period}
+
+\item{type}{shock to be used}
+
+\item{ncol.fig}{a integer, number of figures plotted in a row}
 }
 \value{
+impulse-response function and data to be used in the plot
+
 impulse-response function and data to be used in the plot
 }
 \description{
 Impulse-Response function of estimated VAR model
 provide an impulse-response function and its plot
 }
+\section{Methods (by class)}{
+\itemize{
+\item \code{OLS}: 
+}}
+
