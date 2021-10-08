@@ -5,10 +5,10 @@
 \title{Figures from Bayesian VAR model
 provide figures from Bayesian VAR methods}
 \usage{
-\method{plot}{bayesVAR}(model, ncol.fig = 2)
+\method{plot}{bayesVAR}(x, ncol.fig = 2)
 }
 \arguments{
-\item{model}{Bayesian VAR model}
+\item{x}{Bayesian VAR model}
 
 \item{ncol.fig}{a integer, number of figures plotted in a row}
 }

@@ -4,10 +4,10 @@
 \alias{predict.OLS}
 \title{Simple point prediction with OLS parameter estimates}
 \usage{
-\method{predict}{OLS}(model, newdata)
+\method{predict}{OLS}(object, newdata)
 }
 \arguments{
-\item{model}{a OLS model object}
+\item{object}{a OLS model object}
 
 \item{newdata}{a xts object, exogenous variables for the prediction period}
 }

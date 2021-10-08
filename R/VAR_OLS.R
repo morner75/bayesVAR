@@ -85,10 +85,10 @@ impulse_response.OLS <- function(model, p, variable, period,
 #' Figures from OLS VAR models
 #
 #' provide figures from OLS VAR methods
-#' @param model OLS VAR model
+#' @param x OLS VAR model
 #' @param ncol.fig a integer, number of figures plotted in a row
 #' @export
-plot.OLS <- function(model, ncol.fig=2){
+plot.OLS <- function(x, ncol.fig=2){
 
   data <- model$interval %>%
     mutate(time=as.yearqtr(time))
@@ -118,10 +118,10 @@ plot.OLS <- function(model, ncol.fig=2){
 
 #' Simple point prediction with OLS parameter estimates
 #'
-#' @param model a OLS model object
+#' @param object a OLS model object
 #' @param newdata a xts object, exogenous variables for the prediction period
 #' @export
-predict.OLS <- function(model, newdata){
+predict.OLS <- function(object, newdata){
   if(!is.xts(newdata)) stop("external variables must be xts class")
   period <- nrow(newdata)
   Y <- model$model_var$Y

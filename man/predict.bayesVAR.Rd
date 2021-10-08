@@ -5,10 +5,10 @@
 \title{Posterior predictive distributions from Bayesian VAR model
 sampling posterior predictive distributions from the Bayesian VAR model}
 \usage{
-\method{predict}{bayesVAR}(model, newdata, condition, type = c("unconditional", "conditional"))
+\method{predict}{bayesVAR}(object, newdata, condition, type = c("unconditional", "conditional"))
 }
 \arguments{
-\item{model}{Bayesian VAR model}
+\item{object}{Bayesian VAR model}
 
 \item{newdata}{a data of xts class, exogenous variables for the prediction period}
 
