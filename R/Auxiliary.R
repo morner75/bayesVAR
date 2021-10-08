@@ -114,7 +114,7 @@ predict_cond <- function(Y, newdata, condition, Coef_mat, Sigma){
                                          dplyr::select(-response))))
   names <- str_c("R",1:(period-1))
   for(i in seq_along(names)) R <- R %>% mutate(!!sym(names[i]) := lag(R0,n=i))
-  R <- unnest(R, cols = c(R0, R1, R2, R3), names_repair = "minimal") %>% zoo::na.fill(0)
+  R <- unnest(R, cols = everything(), names_repair = "minimal") %>% zoo::na.fill(0)
 
   eta_bar <- t(R)%*%solve(R%*%t(R))%*%r
   Gamma_bar <- diag(dim(R)[2]) - t(R)%*%solve(R%*%t(R))%*%R
