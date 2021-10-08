@@ -5,7 +5,7 @@
 \title{Ordinary Least Square (OLS) estimation for VAR model
 provide OLS estimates of VAR models}
 \usage{
-VAR_OLS(data, p, exos = colnames(data)[ncol(data)])
+VAR_OLS(data, p, exos = colnames(data)[ncol(data)], confint = 0.95)
 }
 \arguments{
 \item{data}{time-series data with a xts format}
@@ -13,10 +13,11 @@ VAR_OLS(data, p, exos = colnames(data)[ncol(data)])
 \item{p}{a integer, time lags of endogenous variables}
 
 \item{exos}{a character vector, exogenous variables}
+
+\item{confint}{level of confidence interval}
 }
 \value{
-Coef_mat: a coefficient matrix, Sigma: covariance matrix,
-model: a list of two matrices: endogenous variables and explanatory variables
+OLS object, a coefficient matrix, covariance matrix, fitted values etc.
 }
 \description{
 Ordinary Least Square (OLS) estimation for VAR model

@@ -15,10 +15,10 @@ VAR_bayes <- function(data, p, exos=colnames(data)[ncol(data)], N=1500, warmup=5
 
   # initial values from OLS
   Init <- VAR_OLS(data, p, exos)
-  Y <- Init$model$Y
-  X <- Init$model$X
-  beta <- as.vector(Init$Coef_mat)
-  Sigma <- Init$Sigma
+  Y <- Init$model_var$Y
+  X <- Init$model_var$X
+  beta <- as.vector(Init$parameters$Coef_mat)
+  Sigma <- Init$parameters$Sigma
 
   k <- ncol(Y) ; m <- length(exos)+1
   rho <- minnesota_par$rho
@@ -46,10 +46,10 @@ VAR_bayes <- function(data, p, exos=colnames(data)[ncol(data)], N=1500, warmup=5
     mutate(lwr=map_dbl(data, ~quantile(.x[["value"]], probs=0.025)),
            med=map_dbl(data, ~quantile(.x[["value"]], probs=0.5)),
            upr=map_dbl(data, ~quantile(.x[["value"]], probs=0.975))) %>%
-    select(-data) %>% ungroup()
+    dplyr::select(-data) %>% ungroup()
 
   fitted <- interval %>%
-    select(time,var,med) %>%
+    dplyr::select(time,var,med) %>%
     pivot_wider(names_from=var,values_from=med) %>%
     column_to_rownames("time") %>%
     as.xts(order.by=as.yearqtr(rownames(.)))
@@ -69,14 +69,13 @@ VAR_bayes <- function(data, p, exos=colnames(data)[ncol(data)], N=1500, warmup=5
 #' provide figures from Bayesian VAR methods
 #' @param model Bayesian VAR model
 #' @param ncol.fig a integer, number of figures plotted in a row
-#' @param type plotting for goodness-of-fitted or forecasting
 #' @export
-plot.bayesVAR <- function(model, ncol.fig=2, type=c("fitting", "forecast")){
+plot.bayesVAR <- function(model, ncol.fig=2){
 
   data <- model$interval %>%
     mutate(time=as.yearqtr(time))
 
-  if(type=="fitting"){
+  if(!is.null(model$model_var)){
     Y <- model$model_var$Y
     actual <- as.data.frame(Y) %>%
       rownames_to_column("time") %>%
@@ -92,7 +91,7 @@ plot.bayesVAR <- function(model, ncol.fig=2, type=c("fitting", "forecast")){
     facet_wrap(facets=vars(var),ncol=ncol.fig, scales="free_y")+
     theme_bw()+labs(y="")+
     theme(legend.position = "bottom")+
-    {if(type=="fitting") geom_point(aes(y=actual))}
+    {if(!is.null(model$model_var)) geom_point(aes(y=actual))}
 
 }
 
@@ -140,10 +139,10 @@ predict.bayesVAR <- function(model, newdata, condition, type=c("unconditional","
     mutate(lwr=map_dbl(data, ~quantile(.x[["value"]], probs=0.025)),
            med=map_dbl(data, ~quantile(.x[["value"]], probs=0.5)),
            upr=map_dbl(data, ~quantile(.x[["value"]], probs=0.975))) %>%
-    select(-data) %>% ungroup()
+    dplyr::select(-data) %>% ungroup()
 
   fitted <- interval %>%
-    select(time,var,med) %>%
+    dplyr::select(time,var,med) %>%
     pivot_wider(names_from=var,values_from=med) %>%
     column_to_rownames("time") %>%
     as.xts(order.by=as.yearqtr(rownames(.)))

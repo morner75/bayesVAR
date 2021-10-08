@@ -25,10 +25,10 @@ Coef_vec2list<- function(Coef_vec,k,p,m){
 
 # Impulse Response matrix generator
 IR_mat_generator <- function(period, p, Coef_mat, Sigma, type=c("origin","chol","triangle")){
-  #period=2;type="orign"
+  # type="origin"
   if(is.null(colnames(Coef_mat))) colnames(Coef_mat) <- str_c("var",seq_len(ncol(Coef_mat)))
   k <- ncol(Coef_mat)
-  res <- vector("list",length(k))
+  res <- vector("list",k)
 
   for(i in seq_len(k)){
     Ynew <- matrix(0,ncol=k,nrow=p)
@@ -57,7 +57,7 @@ IR_mat_generator <- function(period, p, Coef_mat, Sigma, type=c("origin","chol",
   if(type=="chol") return(res2)
 
   res3 <- res1 %>% transmute(term=term, data=map(data, ~(as.matrix(.x[,-1])%*%t(chol(Sigma))%*%diag(1/sqrt(diag(Sigma))) %>%
-                                                           as_tibble()) %>%
+                                                           as_tibble(.name_repair="minimal")) %>%
                                                    set_names(colnames(Coef_mat)) %>%
                                                    mutate(response=colnames(Coef_mat),.before=1)))
   if(type=="triangle") return(res3)
@@ -66,6 +66,21 @@ IR_mat_generator <- function(period, p, Coef_mat, Sigma, type=c("origin","chol",
 
 
 # forecasting -----------------------------------------------------------------
+
+predict_simple <- function(Y, newdata, Coef_mat){
+  if(!is.xts(newdata)) stop("external variables must be xts class")
+  period <- nrow(newdata)
+  p <- (nrow(Coef_mat)-ncol(newdata)-1)/ncol(Y)
+  Ynew <- tail(Y,n=p)
+  x <- cbind(1,newdata)
+  for(i in seq_len(period)){
+    Y_update <- c(tail(Ynew,n=p) %>% rev.zoo() %>% t() %>% as.vector(),x[i,]) %*% Coef_mat %>%
+      xts(order.by=index(newdata[i,]))
+    Ynew <- rbind(Ynew,Y_update)
+  }
+  Ynew
+}
+
 predict_draw <- function(Y, newdata,Coef_mat, Sigma){
   if(!is.xts(newdata)) stop("external variables must be xts class")
   period <- nrow(newdata)
@@ -82,6 +97,7 @@ predict_draw <- function(Y, newdata,Coef_mat, Sigma){
 }
 
 
+
 predict_cond <- function(Y, newdata, condition, Coef_mat, Sigma){
 
   period <- nrow(newdata)
@@ -91,10 +107,11 @@ predict_cond <- function(Y, newdata, condition, Coef_mat, Sigma){
   r <-  map(seq_len(period), ~coredata(condition - pred_wo_shock[,cond.var])[.x,]) %>% do.call(c,.)
 
   IRmat <- IR_mat_generator(period=(period-1), p=(nrow(Coef_mat)-ncol(newdata)-1)/ncol(Y), Coef_mat=Coef_mat,Sigma=Sigma,type="chol")
-  R <- transmute(IRmat, R0=map(data, ~(set_names(.x, c("response",colnames(Y))) %>%
+  R <- transmute(IRmat, R0=map(data, ~(as_tibble(.x,.name_repair="minimal") %>%
+                                         set_names(c("response",colnames(Y))) %>%
                                          mutate(response=colnames(Y))   %>%
                                          filter(response%in% cond.var) %>%
-                                         select(-response))))
+                                         dplyr::select(-response))))
   names <- str_c("R",1:(period-1))
   for(i in seq_along(names)) R <- R %>% mutate(!!sym(names[i]) := lag(R0,n=i))
   R <- unnest(R, cols = c(R0, R1, R2, R3), names_repair = "minimal") %>% zoo::na.fill(0)
@@ -109,12 +126,12 @@ predict_cond <- function(Y, newdata, condition, Coef_mat, Sigma){
   # U <- t(svd(R,nu=nrow(R))$u)
   # eta_vec <- V1%*%P_inv%*%U%*%r + V2%*%MASS::mvrnorm(1,rep(0,diff(dim(R))),diag(diff(dim(R))))
   eta_list <- map(seq_len(period), ~eta_vec[(1+(.x-1)*ncol(Y)):(.x*ncol(Y))])
-  cond_shocks <- mutate(IRmat, data=map(data, ~select(.x,-response) %>% as.matrix()),
+  cond_shocks <- mutate(IRmat, data=map(data, ~dplyr::select(.x,-response) %>% as.matrix(),.name_repair="minimal"),
                         eta=eta_list,
                         eta_accum=accumulate(eta, function(x,y) append(x,y)),
                         IRmat_accum=accumulate(data, function(x,y) cbind(y,x)),
                         shocks= map2(IRmat_accum,eta_accum,~(.x %*%.y) %>% t())) %>%
-    select(shocks) %>%
+    dplyr::select(shocks) %>%
     unnest(cols=c(shocks),names_repair = "minimal") %>%
     as.xts(order.by=index(condition)) %>% setNames(colnames(Y))
 

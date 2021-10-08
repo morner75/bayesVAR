@@ -5,14 +5,12 @@
 \title{Figures from Bayesian VAR model
 provide figures from Bayesian VAR methods}
 \usage{
-\method{plot}{bayesVAR}(model, ncol.fig = 2, type = c("fitting", "forecast"))
+\method{plot}{bayesVAR}(model, ncol.fig = 2)
 }
 \arguments{
 \item{model}{Bayesian VAR model}
 
 \item{ncol.fig}{a integer, number of figures plotted in a row}
-
-\item{type}{plotting for goodness-of-fitted or forecasting}
 }
 \description{
 Figures from Bayesian VAR model

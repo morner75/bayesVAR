@@ -5,27 +5,10 @@
 \title{Impulse-Response function of estimated VAR model
 provide an impulse-response function and its plot}
 \usage{
-impulse_response(
-  model,
-  p,
-  variable,
-  period,
-  type = c("origin", "structural"),
-  ncol.fig = 2
-)
+impulse_response(model, ...)
 }
 \arguments{
-\item{model}{OLS object from \code{VAR_OLS} function}
-
-\item{p}{a integer, time lags of endogenous variables}
-
-\item{variable}{a character, a variable which gives a shock}
-
-\item{period}{a integer, time period}
-
-\item{type}{shock to be used}
-
-\item{ncol.fig}{a integer, number of figures plotted in a row}
+\item{model}{a object}
 }
 \value{
 impulse-response function and data to be used in the plot
