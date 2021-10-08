@@ -5,10 +5,10 @@
 \title{Figures from OLS VAR models
 provide figures from OLS VAR methods}
 \usage{
-\method{plot}{OLS}(x, ncol.fig = 2)
+\method{plot}{OLS}(model, ncol.fig = 2)
 }
 \arguments{
-\item{x}{OLS VAR model}
+\item{model}{OLS VAR model}
 
 \item{ncol.fig}{a integer, number of figures plotted in a row}
 }

@@ -67,10 +67,10 @@ VAR_bayes <- function(data, p, exos=colnames(data)[ncol(data)], N=1500, warmup=5
 #' Figures from Bayesian VAR model
 #
 #' provide figures from Bayesian VAR methods
-#' @param x Bayesian VAR model
+#' @param model Bayesian VAR model
 #' @param ncol.fig a integer, number of figures plotted in a row
 #' @export
-plot.bayesVAR <- function(x, ncol.fig=2){
+plot.bayesVAR <- function(model, ncol.fig=2){
 
   data <- model$interval %>%
     mutate(time=as.yearqtr(time))
@@ -109,12 +109,12 @@ predict.bayesVAR <- function(object, newdata, condition, type=c("unconditional",
   if(!missing(condition) & missing(type)){ type <- "conditional" }
   if(!is.xts(newdata) | !is.xts(condition)) stop("input data format must be a xts class")
 
-  Y <- model$model_var$Y
-  X <- model$model_var$X
+  Y <- object$model_var$Y
+  X <- object$model_var$X
   k <- ncol(Y)
   p <- (ncol(X)-ncol(newdata)-1)/ncol(Y)
 
-  par <- model$posterior$parameter
+  par <- object$posterior$parameter
 
   if(type=="unconditional"){
     predictive <- imap(par, ~(predict_draw(Y, newdata=newdata, Coef_mat=.x$Beta, Sigma=.x$Sigma)) %>%
