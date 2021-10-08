@@ -1,6 +1,6 @@
 Package: bayesVAR
 Title: Bayesian Vector Autoregressive model
-Version: 0.0.1
+Version: 0.0.2
 Authors@R: 
     person("Junho", "Lee", , "morner@fss.or.kr", role = c("aut", "cre"))
 Description: This package implements Bayesian Vector Autoregressive models based on Minnesota priors and their variants.
@@ -10,7 +10,7 @@ LazyData: true
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.1.2
 Depends: xts, zoo, tidyverse, R (>= 2.10)
-Imports: MASS
+Imports: MASS, xts, zoo, dplyr, tidyr, stringr, tibble, ggplot2
 NeedsCompilation: no
 Packaged: 2021-10-07 17:20:01 UTC; jumho
 Author: Junho Lee [aut, cre]
