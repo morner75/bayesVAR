@@ -2,11 +2,29 @@
 % Please edit documentation in R/VAR_OLS.R
 \name{impulse_response}
 \alias{impulse_response}
+\alias{impulse_response.default}
 \alias{impulse_response.OLS}
 \title{Impulse-Response function of estimated VAR model
 provide an impulse-response function and its plot}
 \usage{
-impulse_response(model, ...)
+impulse_response(
+  model,
+  p,
+  variable,
+  period,
+  type = c("origin", "structural"),
+  ncol.fig = 2,
+  ...
+)
+
+\method{impulse_response}{default}(
+  model,
+  p,
+  variable,
+  period,
+  type = c("origin", "structural"),
+  ncol.fig = 2
+)
 
 \method{impulse_response}{OLS}(
   model,
@@ -18,9 +36,7 @@ impulse_response(model, ...)
 )
 }
 \arguments{
-\item{model}{OLS object from \code{VAR_OLS} function}
-
-\item{...}{extra arguments}
+\item{model}{a model object}
 
 \item{p}{a integer, time lags of endogenous variables}
 
@@ -28,14 +44,11 @@ impulse_response(model, ...)
 
 \item{period}{a integer, time period}
 
-\item{type}{shock to be used}
+\item{type}{shock to be used, \code{structural} stands for independent shocks.}
 
 \item{ncol.fig}{a integer, number of figures plotted in a row}
-}
-\value{
-impulse-response function and data to be used in the plot
 
-impulse-response function and data to be used in the plot
+\item{...}{extra arguments}
 }
 \description{
 Impulse-Response function of estimated VAR model
@@ -43,6 +56,8 @@ provide an impulse-response function and its plot
 }
 \section{Methods (by class)}{
 \itemize{
-\item \code{OLS}: 
+\item \code{default}: default method
+
+\item \code{OLS}: impulse-response function of a OLS VAR model
 }}
 

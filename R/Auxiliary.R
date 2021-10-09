@@ -168,6 +168,16 @@ ind_finder <- function(k,p,m,val1,val2){
   vec1*vec2
 }
 
+mat2Longtb <- function(mat, name= c("var1","var2","value")){
+  as.data.frame(mat) |>
+    tibble::rownames_to_column(var="var1") |>
+    tidyr::pivot_longer(-var1,names_to="var2",values_to = "value") |>
+    rlang::set_names(name)
+}
+
+
+
+
 
 
 # Minnesota Priors ----------------------------------------------------------------------

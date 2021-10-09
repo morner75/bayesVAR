@@ -63,29 +63,24 @@ VAR_bayes <- function(data, p, exos=colnames(data)[ncol(data)], N=1500, warmup=5
   return(model)
 }
 
-
-plot <- function(model,...) UseMethod("plot")
-plot.default <- function(model,...) base::plot(model)
-
 #' Figures from Bayesian VAR model
 #
 #' provide figures from Bayesian VAR methods
-#' @param model Bayesian VAR model
+#' @param x Bayesian VAR model
 #' @param ncol.fig a integer, number of figures plotted in a row
 #' @export
-plot.bayesVAR <- function(model, ncol.fig=2){
+plot.bayesVAR <- function(x, y=NULL, ncol.fig=2){
 
-  data <- model$interval %>%
-    mutate(time=as.yearqtr(time))
+  data <- mutate(x$interval, time=as.yearqtr(time))
 
-  if(!is.null(model$model_var)){
-    Y <- model$model_var$Y
+  if(!is.null(x$model_var)){
+    Y <- x$model_var$Y
     actual <- as.data.frame(Y) %>%
-      rownames_to_column("time") %>%
-      as_tibble() %>%
-      mutate(time=as.yearqtr(time)) %>%
-      pivot_longer(-time,"var",values_to="actual")
-    data <- full_join(data,actual,by=c("time","var"))
+      tibble::rownames_to_column("time") %>%
+      tibble::as_tibble() %>%
+      dplyr::mutate(time=as.yearqtr(time)) %>%
+      tidyr::pivot_longer(-time,"var",values_to="actual")
+    data <- dplyr::full_join(data,actual,by=c("time","var"))
   }
 
   ggplot(data=data,aes(time,col=var,group=1))+
@@ -94,7 +89,7 @@ plot.bayesVAR <- function(model, ncol.fig=2){
     facet_wrap(facets=vars(var),ncol=ncol.fig, scales="free_y")+
     theme_bw()+labs(y="")+
     theme(legend.position = "bottom")+
-    {if(!is.null(model$model_var)) geom_point(aes(y=actual))}
+    {if(!is.null(x$model_var)) geom_point(aes(y=actual))}
 
 }
 

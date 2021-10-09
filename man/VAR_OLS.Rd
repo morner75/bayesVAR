@@ -2,10 +2,19 @@
 % Please edit documentation in R/VAR_OLS.R
 \name{VAR_OLS}
 \alias{VAR_OLS}
+\alias{fitted.OLS}
+\alias{coef.OLS}
+\alias{summary.OLS}
 \title{Ordinary Least Square (OLS) estimation for VAR model
 provide OLS estimates of VAR models}
 \usage{
 VAR_OLS(data, p, exos = colnames(data)[ncol(data)], confint = 0.95)
+
+\method{fitted}{OLS}(object)
+
+\method{coef}{OLS}(object)
+
+\method{summary}{OLS}(object)
 }
 \arguments{
 \item{data}{time-series data with a xts format}
@@ -14,7 +23,9 @@ VAR_OLS(data, p, exos = colnames(data)[ncol(data)], confint = 0.95)
 
 \item{exos}{a character vector, exogenous variables}
 
-\item{confint}{level of confidence interval}
+\item{confint}{a level of confidence interval}
+
+\item{object}{a OLS VAR model}
 }
 \value{
 OLS object, a coefficient matrix, covariance matrix, fitted values etc.
@@ -23,3 +34,12 @@ OLS object, a coefficient matrix, covariance matrix, fitted values etc.
 Ordinary Least Square (OLS) estimation for VAR model
 provide OLS estimates of VAR models
 }
+\section{Methods (by generic)}{
+\itemize{
+\item \code{fitted}: fitted values for response variables
+
+\item \code{coef}: a coefficient matrix of a VAR model
+
+\item \code{summary}: summarize inference by OLS fitting
+}}
+

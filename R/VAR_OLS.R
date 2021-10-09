@@ -4,40 +4,65 @@
 #' @param data time-series data with a xts format
 #' @param p a integer, time lags of endogenous variables
 #' @param exos a character vector, exogenous variables
-#' @param confint level of confidence interval
+#' @param confint a level of confidence interval
 #' @return OLS object, a coefficient matrix, covariance matrix, fitted values etc.
 #' @export
 VAR_OLS <- function(data, p, exos=colnames(data)[ncol(data)], confint=0.95){
   if(!is.xts(data)) stop("data must be xts class")
   endo <- data[, setdiff(colnames(data),exos)]
-  k=ncol(endo)
-  m=length(exos)+1
-  N = nrow(endo)
+  k <- ncol(endo)
+  m <- length(exos)+1
+  N <-  nrow(endo)
   Y <- endo[(p+1):N,]
-  Ylag <- map(seq_len(p), function(i) coredata(endo)[(p+1-i):(N-i),]) %>% do.call(cbind,.)
-  colnames(Ylag) <- outer(str_c(colnames(endo),"_L"),1:p,str_c) %>% as.vector()
-  x <- data[(p+1):N,exos] %>% merge(Intercept=1,.)
-  X <- cbind(Ylag,x)
-  Beta <- solve(t(X)%*%X)%*%t(X)%*%Y
-  fitted <- X%*%Beta %>% xts(order.by=index(X))
-  Resid <- Y-fitted
-  Sigma <- t(Resid)%*%Resid/(N-k*p-m-1)
-  interval <- merge(fitted,fitted,fitted) %>%
-    setNames(outer(colnames(fitted),c("lwr","med","upr"),str_c,sep=".") %>% as.vector()) +
-    outer(diag(Sigma), c(qnorm((1-confint)/2),0,-qnorm((1-confint)/2)), "*") %>%
-    as.vector() %>% matrix(nrow=3*k,ncol=nrow(fitted)) %>% t()
-  interval <- as.data.frame(interval) %>%
-                rownames_to_column(var="time") %>%
-                mutate(time=as.yearqtr(time)) %>%
-                pivot_longer(-time,names_to=c("var",".value"),names_pattern="(.*)\\.(.*)")
-  res <- list(formula = as.formula(str_c(str_c(colnames(Y), collapse=" + "),
-                        " ~ " ,str_c(c(colnames(Ylag), names(exos)), collapse=" + "))))
-  class(res) <- "OLS"
-  res$parameters <- list(Coef_mat=Beta, Sigma=Sigma)
-  res$fitted <- fitted
-  res$interval <- interval
-  res$model_var <- list(Y=Y, X=X)
-  return(res)
+  Ylag <- do.call(cbind,lapply(seq_len(p), function(i) coredata(endo)[(p+1-i):(N-i),]))
+  colnames(Ylag) <- as.vector(outer(str_c(colnames(endo),"_L"),1:p,paste0))
+  X <- cbind(Ylag,merge(Intercept=1, data[(p+1):N,exos]))
+  qrdecom <- qr(X)
+  Beta <- qr.coef(qrdecom,Y)
+  fitted <- qr.fitted(qrdecom,Y)
+  Sigma <- t(qr.resid(qrdecom,Y))%*%qr.resid(qrdecom,Y)/(N-k*p-m-1)
+  interval <- (matrix(rep(1,3),nrow=1) %x% coredata(fitted)) +
+    (matrix(outer(diag(Sigma), c(qnorm((1-confint)/2),0,-qnorm((1-confint)/2)), "*"),nrow=1) %x% matrix(1,nrow=nrow(fitted)))
+  colnames(interval) <- as.vector(outer(colnames(fitted),c("lwr","med","upr"),paste,sep="."))
+  ans <- list(terms = list( Y =colnames(Y),
+                            X= as.formula(paste0(" ~ " ,paste(c(colnames(Ylag), exos), collapse=" + ")))))
+  class(ans) <- "OLS"
+  ans$parameters <- list(Coef_mat=Beta, Sigma=Sigma)
+  ans$fitted <- fitted
+  ans$interval <- as.data.frame(interval) |>
+                    dplyr::mutate(time=zoo::index(fitted)) |>
+                    tidyr::pivot_longer(-time,names_to=c("var",".value"),names_pattern="(.*)\\.(.*)")
+  ans$model_var <- list(Y=Y, X=X)
+  return(ans)
+}
+
+
+#' @describeIn VAR_OLS fitted values for response variables
+#' @param object a OLS VAR model
+#' @export
+fitted.OLS <- function(object) return (object$fitted)
+
+#' @describeIn VAR_OLS a coefficient matrix of a VAR model
+#' @param object a OLS VAR model
+#' @export
+coef.OLS <- function(object) return (object$parameters$Coef_mat)
+
+#' @describeIn VAR_OLS summarize inference by OLS fitting
+#' @param object a OLS VAR model
+#' @export
+summary.OLS <- function(object){
+  Coef_mat <- coef(object)
+  Sigma <- object$parameters$Sigma
+
+  tb2 <-data.frame(response=factor(rownames(Sigma),levels=rownames(Sigma)),
+                   `S.E`=sqrt(diag(Sigma))) |>
+    expand(response,explanatory=rownames(Coef_mat),`S.E`)
+
+  ans <- bayesVAR:::mat2Longtb(Coef_mat,c("explanatory","response","coef.value"))[c("response","explanatory","coef.value")] |>
+    dplyr::right_join(tb2,by=c("response","explanatory")) |>
+    dplyr::mutate(`Z.value`=`coef.value`/`S.E`,
+                  `p.value`=format(1-pnorm(`Z.value`),digits=5,justify="right"))
+    print.data.frame(ans)
 }
 
 
@@ -45,23 +70,24 @@ VAR_OLS <- function(data, p, exos=colnames(data)[ncol(data)], confint=0.95){
 #' Impulse-Response function of estimated VAR model
 #
 #' provide an impulse-response function and its plot
-#' @param model a object
-#' @param ... extra arguments
-#' @return impulse-response function and data to be used in the plot
-#' @export
-impulse_response <- function(model,...)   UseMethod("impulse_response")
-
-#'#' @describeIn impulse_response
-impulse_response.default <- function(mdoel,...) impulse_response(model,...)
-
-
-#' @describeIn impulse_response
-#'
+#' @param model  a model object
 #' @param variable a character, a variable which gives a shock
 #' @param period a integer, time period
 #' @param p a integer, time lags of endogenous variables
-#' @param type shock to be used
+#' @param type shock to be used, \code{structural} stands for independent shocks.
 #' @param ncol.fig a integer, number of figures plotted in a row
+#' @param ... extra arguments
+impulse_response <- function(model, p, variable, period,
+                             type=c("origin","structural"), ncol.fig=2,...)   UseMethod("impulse_response")
+
+#' @describeIn impulse_response default method
+impulse_response.default <- function(model, p, variable, period,
+                                     type=c("origin","structural"), ncol.fig=2){
+  bayesVAR:::impulse_response.OLS(model, p, variable, period,
+                                  type=c("origin","structural"), ncol.fig=2)
+}
+
+#' @describeIn impulse_response impulse-response function of a OLS VAR model
 #' @export
 impulse_response.OLS <- function(model, p, variable, period,
                                     type=c("origin","structural"), ncol.fig=2){
@@ -86,22 +112,21 @@ impulse_response.OLS <- function(model, p, variable, period,
 #' Figures from OLS VAR models
 #
 #' provide figures from OLS VAR methods
-#' @param model OLS VAR model
+#' @param x OLS VAR model
 #' @param ncol.fig a integer, number of figures plotted in a row
 #' @export
-plot.OLS <- function(model, ncol.fig=2){
+plot.OLS <- function(x,y=NULL, ncol.fig=2){
 
-  data <- model$interval %>%
-    mutate(time=as.yearqtr(time))
+  data <- dplyr::mutate(x$interval, time=as.yearqtr(time))
 
-  if(!is.null(model$model_var)){
-    Y <- model$model_var$Y
-    actual <- as.data.frame(Y) %>%
-      rownames_to_column("time") %>%
-      as_tibble() %>%
-      mutate(time=as.yearqtr(time)) %>%
-      pivot_longer(-time,"var",values_to="actual")
-    data <- full_join(data,actual,by=c("time","var"))
+  if(!is.null(x$model_var)){
+    Y <- x$model_var$Y
+    actual <- as.data.frame(Y) |>
+      tibble::rownames_to_column("time") |>
+      tibble::as_tibble() |>
+      dplyr::mutate(time=as.yearqtr(time)) |>
+      tidyr::pivot_longer(-time,"var",values_to="actual")
+    data <- dplyr::full_join(data,actual,by=c("time","var"))
   }
 
   ggplot(data=data,aes(time,col=var,group=1))+
@@ -110,10 +135,9 @@ plot.OLS <- function(model, ncol.fig=2){
     facet_wrap(facets=vars(var),ncol=ncol.fig, scales="free_y")+
     theme_bw()+labs(y="")+
     theme(legend.position = "bottom")+
-    {if(!is.null(model$model_var)) geom_point(aes(y=actual))}
+    {if(!is.null(x$model_var)) geom_point(aes(y=actual))}
 
 }
-
 
 
 
