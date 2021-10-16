@@ -24,35 +24,25 @@ VAR_bayes <- function(data, p, exos=colnames(data)[ncol(data)], N=1500, warmup=5
   rho <- minnesota_par$rho
   lambdas <- minnesota_par$lambdas
 
-  par.samples <- vector("list", length = N)
+  par.samples <- list(Coef_mat=vector("list", length=N), Sigma=vector("list", length=N))
 
   for(i in seq_len(N)) {
-    beta <- NW_beta(Sigma, X, Y, rho=rho, lambdas=lambdas)
+    Coef_mat <- NW_beta(Sigma, X, Y, rho=rho, lambdas=lambdas) |> Coef_vec2mat(k,p,m)
     Sigma <- NW_Sigma(beta, X, Y)
-    par.samples[[i]] <- list(Beta=Coef_vec2mat(beta,k,p,m), Sigma=Sigma)
+    par.samples$Coef_mat[[i]] <- Coef_mat
+    par.samples$Sigma[[i]] <- Sigma
   }
 
-  par.samples <- par.samples[(warmup+1):N]
-  fitted.samples <- imap(par.samples, ~ (X%*% .x$Beta) %>%
-                           as_tibble(.name_repair = "minimal") %>%
-                           set_names(colnames(Y)) %>%
-                           mutate(sample=.y,
-                                  time=index(Y))) %>%
-    do.call(rbind,.)
+  par.samples <- lapply(par.samples, function(lst) lst[(warmup+1):N])
+  fitted.samples <- lapply(seq_len(N-warmup), function(i) X%*% par.samples$Coef_mat[[i]] |>
+                                                          as.xts(order.by=index(Y)) |> setNames(colnames(Y)))
 
-  interval <- fitted.samples %>%
-    pivot_longer(cols=!one_of("time","sample"), names_to="var") %>%
-    group_by(time,var) %>% nest() %>%
-    mutate(lwr=map_dbl(data, ~quantile(.x[["value"]], probs=0.025)),
-           med=map_dbl(data, ~quantile(.x[["value"]], probs=0.5)),
-           upr=map_dbl(data, ~quantile(.x[["value"]], probs=0.975))) %>%
-    dplyr::select(-data) %>% ungroup()
+  fitted <- Reduce(`+`, fitted.samples)/(N-warmup)
 
-  fitted <- interval %>%
-    dplyr::select(time,var,med) %>%
-    pivot_wider(names_from=var,values_from=med) %>%
-    column_to_rownames("time") %>%
-    as.xts(order.by=as.yearqtr(rownames(.)))
+  interval <- array(unlist(fitted.samples),dim=c(nrow(fitted.samples[[1]]),ncol(fitted.samples[[1]]),N-warmup)) |>
+                apply(c(1,2),quantile,probs=c(0.025,0.5,0.975)) |> purrr::array_branch(margin=1)
+  interval <- lapply(interval, function(lst) xts(lst, order.by=index(Y)) |> setNames(colnames(Y))) |>
+                setNames(c("lower","median","upper"))
 
   model <- list(fitted=fitted,
                 posterior=list(parameter=par.samples,predictive=fitted.samples),
@@ -71,21 +61,23 @@ VAR_bayes <- function(data, p, exos=colnames(data)[ncol(data)], N=1500, warmup=5
 #' @export
 plot.bayesVAR <- function(x, y=NULL, ncol.fig=2){
 
-  data <- mutate(x$interval, time=as.yearqtr(time))
+  data <- purrr::map_dfr(x$interval,
+          ~(dplyr::mutate(tibble::as_tibble(.x),time=as.yearqtr(index(x$interval[[1]])),.before=1)),.id="type") |>
+          tidyr::pivot_longer(!one_of("time","type"),names_to="var") |>
+          tidyr::pivot_wider(names_from="type",values_from="value")
+
 
   if(!is.null(x$model_var)){
     Y <- x$model_var$Y
-    actual <- as.data.frame(Y) %>%
-      tibble::rownames_to_column("time") %>%
-      tibble::as_tibble() %>%
-      dplyr::mutate(time=as.yearqtr(time)) %>%
+    actual <- tibble::rownames_to_column(as.data.frame(Y), "time") |>
+      dplyr::mutate(time=as.yearqtr(time)) |>
       tidyr::pivot_longer(-time,"var",values_to="actual")
-    data <- dplyr::full_join(data,actual,by=c("time","var"))
+    data <- dplyr::left_join(data,actual,by=c("time","var"))
   }
 
   ggplot(data=data,aes(time,col=var,group=1))+
-    geom_line(aes(y=med))+
-    geom_ribbon(aes(ymin=lwr,ymax=upr,fill=var),alpha=0.3)+
+    geom_line(aes(y=median))+
+    geom_ribbon(aes(ymin=lower,ymax=upper,fill=var),alpha=0.3)+
     facet_wrap(facets=vars(var),ncol=ncol.fig, scales="free_y")+
     theme_bw()+labs(y="")+
     theme(legend.position = "bottom")+
@@ -115,35 +107,23 @@ predict.bayesVAR <- function(object, newdata, condition, type=c("unconditional",
   par <- object$posterior$parameter
 
   if(type=="unconditional"){
-    predictive <- imap(par, ~(predict_draw(Y, newdata=newdata, Coef_mat=.x$Beta, Sigma=.x$Sigma)) %>%
-                         as.data.frame() %>%
-                         rownames_to_column("time") %>%
-                         mutate(sample=.y)) %>%
-      do.call(rbind,.)
+    predictive <- lapply(seq_along(par[[1]]), function(i)
+                          predict_draw(Y, newdata=newdata, Coef_mat=par$Coef_mat[[i]], Sigma=par$Sigma[[i]]))
+
 
   } else if(type=="conditional"){
-    predictive <- imap(par, ~(predict_cond(Y, newdata, condition, Coef_mat=.x$Beta, Sigma=.x$Sigma)) %>%
-                         as.data.frame() %>%
-                         rownames_to_column("time") %>%
-                         mutate(sample=.y)) %>%
-      do.call(rbind,.)
+    predictive <- lapply(seq_along(par[[1]]), function(i)
+                        predict_cond(Y, newdata, condition, Coef_mat=par$Coef_mat[[i]], Sigma=par$Sigma[[i]]))
+
   }
 
-  # predict_cond(Y, newdata, condition, Coef_mat=par[[1]]$Beta, Sigma=par[[1]]$Sigma)
-  # Coef_mat=par[[1]]$Beta ;  Sigma=par[[1]]$Sigma
-  interval <- predictive %>%
-    pivot_longer(cols=!one_of("time","sample"), names_to="var") %>%
-    group_by(time,var) %>% nest() %>%
-    mutate(lwr=map_dbl(data, ~quantile(.x[["value"]], probs=0.025)),
-           med=map_dbl(data, ~quantile(.x[["value"]], probs=0.5)),
-           upr=map_dbl(data, ~quantile(.x[["value"]], probs=0.975))) %>%
-    dplyr::select(-data) %>% ungroup()
+  fitted <- Reduce(`+`, predictive)/length(par$Coef_mat)
 
-  fitted <- interval %>%
-    dplyr::select(time,var,med) %>%
-    pivot_wider(names_from=var,values_from=med) %>%
-    column_to_rownames("time") %>%
-    as.xts(order.by=as.yearqtr(rownames(.)))
+  interval <- array(unlist(predictive),dim=c(nrow(predictive[[1]]),ncol(predictive[[1]]),length(par$Coef_mat))) |>
+    apply(c(1,2),quantile,probs=c(0.025,0.5,0.975)) |> purrr::array_branch(margin=1)
+  interval <- lapply(interval, function(lst) xts(lst, order.by=index(fitted)) |> setNames(colnames(Y))) |>
+    setNames(c("lower","median","upper"))
+
 
   Fred <- list(fitted=fitted,
                posterior=predictive,

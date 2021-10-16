@@ -1,10 +1,3 @@
-# S3 generic functions -------------------------------------------------------------------
-
-plot <- function(model,...) UseMethod("plot")
-plot.default <- function(model,...) base::plot(model)
-
-predict <- function(model,...) UseMethod("predict")
-predict.default <- function(model,...) stats::predict.lm(model)
 
 
 # helper functions between different forms of coefficient values -------------------------
@@ -31,12 +24,11 @@ Coef_vec2list<- function(Coef_vec,k,p,m){
 
 
 # Impulse Response matrix generator
-IR_mat_generator <- function(period, p, Coef_mat, Sigma, type=c("origin","chol","triangle")){
-  # type="origin"
-  if(is.null(colnames(Coef_mat))) colnames(Coef_mat) <- str_c("var",seq_len(ncol(Coef_mat)))
-  k <- ncol(Coef_mat)
-  res <- vector("list",k)
+IR_mat_generator <- function(names, period, p, Coef_mat, Sigma, type=c("origin","chol","triangle")){
 
+  colnames(Coef_mat) <- names
+  k <- ncol(Coef_mat)
+  res <- list()
   for(i in seq_len(k)){
     Ynew <- matrix(0,ncol=k,nrow=p)
     Ynew[p,i] <- 1
@@ -45,28 +37,22 @@ IR_mat_generator <- function(period, p, Coef_mat, Sigma, type=c("origin","chol",
       Ynew <- rbind(Ynew,Y_update)
     }
 
-    res[[i]] <- as_tibble(Ynew[p:(p+period),]) %>% mutate(term=0:period,.before=1)
+    res <- rbind(res, cbind( as.data.frame(Ynew[p:(p+period),]), response=colnames(Coef_mat)[i],term=0:period) )
   }
-  names(res) <-  colnames(Coef_mat)
-  res1 <- imap(res, ~mutate(.x, impulse=.y,.before=1) %>%
-                 pivot_longer(!one_of("term","impulse"),names_to = "response"))  %>%
-    do.call(rbind,.) %>%
-    arrange(term,factor(response,levels = colnames(Coef_mat))) %>%
-    pivot_wider(names_from="impulse",values_from="value") %>%
-    group_by(term) %>% nest() %>% ungroup()
+
+  res1 <- purrr::map(seq_len(period+1), ~(dplyr::filter(res,term==.x-1)) %>%
+                                  dplyr::select(-term) %>%
+                                    tibble::column_to_rownames(var = "response") %>%
+                                    as.data.frame() %>% t())
 
   if(type=="origin") return(res1)
 
-  res2 <- res1 %>% transmute(term=term, data=map(data, ~(as.matrix(.x[,-1])%*%t(chol(Sigma)) %>%
-                                                           as_tibble()) %>%
-                                                   set_names(colnames(Coef_mat)) %>%
-                                                   mutate(response=colnames(Coef_mat),.before=1)))
+  res2 <- lapply(res1, function(.x) .x%*%t(chol(Sigma)))
+
   if(type=="chol") return(res2)
 
-  res3 <- res1 %>% transmute(term=term, data=map(data, ~(as.matrix(.x[,-1])%*%t(chol(Sigma))%*%diag(1/sqrt(diag(Sigma))) %>%
-                                                           as_tibble(.name_repair="minimal")) %>%
-                                                   set_names(colnames(Coef_mat)) %>%
-                                                   mutate(response=colnames(Coef_mat),.before=1)))
+  res3 <-  lapply(res2, function(.x) .x%*%diag(1/sqrt(diag(Sigma))))
+
   if(type=="triangle") return(res3)
 }
 
@@ -81,7 +67,7 @@ predict_simple <- function(Y, newdata, Coef_mat){
   Ynew <- tail(Y,n=p)
   x <- cbind(1,newdata)
   for(i in seq_len(period)){
-    Y_update <- c(tail(Ynew,n=p) %>% rev.zoo() %>% t() %>% as.vector(),x[i,]) %*% Coef_mat %>%
+    Y_update <- c(as.vector(t(zoo::rev.zoo(tail(Ynew,n=p)))),x[i,]) %*% Coef_mat |>
       xts(order.by=index(newdata[i,]))
     Ynew <- rbind(Ynew,Y_update)
   }
@@ -95,8 +81,8 @@ predict_draw <- function(Y, newdata,Coef_mat, Sigma){
   Ynew <- tail(Y,n=p)
   x <- cbind(1,newdata)
   for(i in seq_len(period)){
-    Y_update <- matrix(c(tail(Ynew,n=p) %>% rev.zoo() %>% t() %>% as.vector(),x[i,]) %*% Coef_mat +
-                         MASS::mvrnorm(n=1, mu=rep(0,ncol(Y)), Sigma=Sigma),nrow=1) %>%
+    Y_update <- matrix(c(as.vector(t(zoo::rev.zoo(tail(Ynew,n=p)))),x[i,]) %*% Coef_mat +
+                         MASS::mvrnorm(n=1, mu=rep(0,ncol(Y)), Sigma=Sigma),nrow=1) |>
       xts(order.by=index(newdata[i,]))
     Ynew <- rbind(Ynew,Y_update)
   }
@@ -110,37 +96,30 @@ predict_cond <- function(Y, newdata, condition, Coef_mat, Sigma){
   period <- nrow(newdata)
   p <- (nrow(Coef_mat) - ncol(newdata)-1)/ncol(Coef_mat)
   cond.var <- colnames(condition)
-  pred_wo_shock <- predict_simple(Y, newdata, Coef_mat) %>%  tail(n=period)
-  r <-  map(seq_len(period), ~coredata(condition - pred_wo_shock[,cond.var])[.x,]) %>% do.call(c,.)
+  pred_wo_shock <- predict_simple(Y, newdata, Coef_mat) |>  tail(n=period)
+  r <-  vapply(seq_len(period), function(.x)
+                coredata(condition - pred_wo_shock[,cond.var])[.x,],FUN.VALUE = numeric(2)) |>
+        as.vector()
 
-  IRmat <- IR_mat_generator(period=(period-1), p=(nrow(Coef_mat)-ncol(newdata)-1)/ncol(Y), Coef_mat=Coef_mat,Sigma=Sigma,type="chol")
-  R <- transmute(IRmat, R0=map(data, ~(as_tibble(.x,.name_repair="minimal") %>%
-                                         set_names(c("response",colnames(Y))) %>%
-                                         mutate(response=colnames(Y))   %>%
-                                         filter(response%in% cond.var) %>%
-                                         dplyr::select(-response))))
-  names <- str_c("R",1:(period-1))
-  for(i in seq_along(names)) R <- R %>% mutate(!!sym(names[i]) := lag(R0,n=i))
-  R <- unnest(R, cols = everything(), names_repair = "minimal") %>% zoo::na.fill(0)
+  IRmat <- IR_mat_generator(names=colnames(Y), period=(period-1), p=(nrow(Coef_mat)-ncol(newdata)-1)/ncol(Y), Coef_mat=Coef_mat,Sigma=Sigma,type="chol")
 
-  eta_bar <- t(R)%*%solve(R%*%t(R))%*%r
-  Gamma_bar <- diag(dim(R)[2]) - t(R)%*%solve(R%*%t(R))%*%R
-  eta_vec <- MASS::mvrnorm(1,eta_bar, Gamma_bar)
 
-  # P_inv <- solve(diag(svd(R)$d))
-  # V1 <- t(svd(R,nv=ncol(R))$v)[,1:nrow(R)]
-  # V2 <- t(svd(R,nv=ncol(R))$v)[,(nrow(R)+1):ncol(R)]
-  # U <- t(svd(R,nu=nrow(R))$u)
-  # eta_vec <- V1%*%P_inv%*%U%*%r + V2%*%MASS::mvrnorm(1,rep(0,diff(dim(R))),diag(diff(dim(R))))
-  eta_list <- map(seq_len(period), ~eta_vec[(1+(.x-1)*ncol(Y)):(.x*ncol(Y))])
-  cond_shocks <- mutate(IRmat, data=map(data, ~dplyr::select(.x,-response) %>% as.matrix(),.name_repair="minimal"),
-                        eta=eta_list,
-                        eta_accum=accumulate(eta, function(x,y) append(x,y)),
-                        IRmat_accum=accumulate(data, function(x,y) cbind(y,x)),
-                        shocks= map2(IRmat_accum,eta_accum,~(.x %*%.y) %>% t())) %>%
-    dplyr::select(shocks) %>%
-    unnest(cols=c(shocks),names_repair = "minimal") %>%
-    as.xts(order.by=index(condition)) %>% setNames(colnames(Y))
+  R <- Reduce(`+`,lapply(seq_along(IRmat), function(i) diag2(period-i+1, period)%x%IRmat[[i]][cond.var,]))
+
+
+  V1 <- svd(R,nv=dim(R)[2])$v[,1:dim(R)[1]]
+  V2 <- svd(R,nv=dim(R)[2])$v[,(dim(R)[1]+1):dim(R)[2]]
+  U <- svd(R,nu=dim(R)[1])$u
+
+  eta_vec <- V1%*%diag(1/svd(R)$d)%*%t(U)%*%r + V2%*%MASS::mvrnorm(1,rep(0,diff(dim(R))),diag(diff(dim(R))))
+
+  eta_list <- lapply(seq_len(period), function(.x) eta_vec[(1+(.x-1)*ncol(Y)):(.x*ncol(Y))])
+
+  eta_accum=accumulate(eta_list, function(x,y) append(x,y))
+  IRmat_accum=accumulate(IRmat, function(x,y) cbind(y,x))
+
+  cond_shocks <- do.call(rbind,lapply(seq_len(period), function(i) t(IRmat_accum[[i]]%*%eta_accum[[i]]))) |>
+                    as.xts(order.by=index(condition))
 
   rbind(tail(Y,n=p), cond_shocks + pred_wo_shock)
 }
@@ -175,7 +154,11 @@ mat2Longtb <- function(mat, name= c("var1","var2","value")){
     rlang::set_names(name)
 }
 
-
+diag2 <- function(k,n){
+  mat <- array(0, dim=c(n,n))
+  mat[(n-k+1):n,1:k] <- diag(k)
+  mat
+}
 
 
 

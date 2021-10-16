@@ -1,5 +1,5 @@
 #' Ordinary Least Square (OLS) estimation for VAR model
-#
+#'
 #' provide OLS estimates of VAR models
 #' @param data time-series data with a xts format
 #' @param p a integer, time lags of endogenous variables
@@ -26,13 +26,13 @@ VAR_OLS <- function(data, p, exos=colnames(data)[ncol(data)], confint=0.95){
   colnames(interval) <- as.vector(outer(colnames(fitted),c("lwr","med","upr"),paste,sep="."))
   ans <- list(terms = list( Y =colnames(Y),
                             X= as.formula(paste0(" ~ " ,paste(c(colnames(Ylag), exos), collapse=" + ")))))
-  class(ans) <- "OLS"
   ans$parameters <- list(Coef_mat=Beta, Sigma=Sigma)
   ans$fitted <- fitted
   ans$interval <- as.data.frame(interval) |>
                     dplyr::mutate(time=zoo::index(fitted)) |>
                     tidyr::pivot_longer(-time,names_to=c("var",".value"),names_pattern="(.*)\\.(.*)")
   ans$model_var <- list(Y=Y, X=X)
+  class(ans) <- "OLS"
   return(ans)
 }
 
@@ -47,7 +47,7 @@ fitted.OLS <- function(object) return (object$fitted)
 #' @export
 coef.OLS <- function(object) return (object$parameters$Coef_mat)
 
-#' @describeIn VAR_OLS summarize inference by OLS fitting
+#' @describeIn VAR_OLS model Summary
 #' @param object a OLS VAR model
 #' @export
 summary.OLS <- function(object){
@@ -70,32 +70,32 @@ summary.OLS <- function(object){
 #' Impulse-Response function of estimated VAR model
 #
 #' provide an impulse-response function and its plot
-#' @param model  a model object
+#' @param object  a model object
 #' @param variable a character, a variable which gives a shock
 #' @param period a integer, time period
 #' @param p a integer, time lags of endogenous variables
 #' @param type shock to be used, \code{structural} stands for independent shocks.
 #' @param ncol.fig a integer, number of figures plotted in a row
 #' @param ... extra arguments
-impulse_response <- function(model, p, variable, period,
+impulse_response <- function(object, p, variable, period,
                              type=c("origin","structural"), ncol.fig=2,...)   UseMethod("impulse_response")
 
 #' @describeIn impulse_response default method
-impulse_response.default <- function(model, p, variable, period,
+impulse_response.default <- function(object, p, variable, period,
                                      type=c("origin","structural"), ncol.fig=2){
-  bayesVAR:::impulse_response.OLS(model, p, variable, period,
+  bayesVAR:::impulse_response.OLS(object, p, variable, period,
                                   type=c("origin","structural"), ncol.fig=2)
 }
 
 #' @describeIn impulse_response impulse-response function of a OLS VAR model
 #' @export
-impulse_response.OLS <- function(model, p, variable, period,
+impulse_response.OLS <- function(object, p, variable, period,
                                     type=c("origin","structural"), ncol.fig=2){
-  Coef_mat <- model$parameter$Coef_mat
-  Sigma <- model$parameters$Sigma
+  Coef_mat <- object$parameter$Coef_mat
+  Sigma <- object$parameters$Sigma
   if(type=="structural") type <- "triangle"
 
-  res <-  IR_mat_generator(period=period, p=p, Coef_mat=Coef_mat,Sigma=Sigma,type=type) %>%
+  res <-  IR_mat_generator(names=colnames(Coef_mat),period=period, p=p, Coef_mat=Coef_mat,Sigma=Sigma,type=type) %>%
     unnest(cols=data) %>%
     dplyr::select(term, response, one_of(variable)) %>%
     dplyr::rename(value=one_of(variable))
@@ -109,9 +109,8 @@ impulse_response.OLS <- function(model, p, variable, period,
   return(res)
 }
 
-#' Figures from OLS VAR models
-#
-#' provide figures from OLS VAR methods
+
+#' @describeIn VAR_OLS Summary plot
 #' @param x OLS VAR model
 #' @param ncol.fig a integer, number of figures plotted in a row
 #' @export

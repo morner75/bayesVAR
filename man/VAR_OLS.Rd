@@ -5,8 +5,8 @@
 \alias{fitted.OLS}
 \alias{coef.OLS}
 \alias{summary.OLS}
-\title{Ordinary Least Square (OLS) estimation for VAR model
-provide OLS estimates of VAR models}
+\alias{plot.OLS}
+\title{Ordinary Least Square (OLS) estimation for VAR model}
 \usage{
 VAR_OLS(data, p, exos = colnames(data)[ncol(data)], confint = 0.95)
 
@@ -15,6 +15,8 @@ VAR_OLS(data, p, exos = colnames(data)[ncol(data)], confint = 0.95)
 \method{coef}{OLS}(object)
 
 \method{summary}{OLS}(object)
+
+\method{plot}{OLS}(x, y = NULL, ncol.fig = 2)
 }
 \arguments{
 \item{data}{time-series data with a xts format}
@@ -26,12 +28,15 @@ VAR_OLS(data, p, exos = colnames(data)[ncol(data)], confint = 0.95)
 \item{confint}{a level of confidence interval}
 
 \item{object}{a OLS VAR model}
+
+\item{x}{OLS VAR model}
+
+\item{ncol.fig}{a integer, number of figures plotted in a row}
 }
 \value{
 OLS object, a coefficient matrix, covariance matrix, fitted values etc.
 }
 \description{
-Ordinary Least Square (OLS) estimation for VAR model
 provide OLS estimates of VAR models
 }
 \section{Methods (by generic)}{
@@ -40,6 +45,8 @@ provide OLS estimates of VAR models
 
 \item \code{coef}: a coefficient matrix of a VAR model
 
-\item \code{summary}: summarize inference by OLS fitting
+\item \code{summary}: model Summary
+
+\item \code{plot}: Summary plot
 }}
 

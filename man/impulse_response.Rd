@@ -8,7 +8,7 @@
 provide an impulse-response function and its plot}
 \usage{
 impulse_response(
-  model,
+  object,
   p,
   variable,
   period,
@@ -18,7 +18,7 @@ impulse_response(
 )
 
 \method{impulse_response}{default}(
-  model,
+  object,
   p,
   variable,
   period,
@@ -27,7 +27,7 @@ impulse_response(
 )
 
 \method{impulse_response}{OLS}(
-  model,
+  object,
   p,
   variable,
   period,
@@ -36,7 +36,7 @@ impulse_response(
 )
 }
 \arguments{
-\item{model}{a model object}
+\item{object}{a model object}
 
 \item{p}{a integer, time lags of endogenous variables}
 
