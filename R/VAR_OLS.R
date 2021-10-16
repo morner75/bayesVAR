@@ -15,7 +15,7 @@ VAR_OLS <- function(data, p, exos=colnames(data)[ncol(data)], confint=0.95){
   N <-  nrow(endo)
   Y <- endo[(p+1):N,]
   Ylag <- do.call(cbind,lapply(seq_len(p), function(i) coredata(endo)[(p+1-i):(N-i),]))
-  colnames(Ylag) <- as.vector(outer(str_c(colnames(endo),"_L"),1:p,paste0))
+  colnames(Ylag) <- as.vector(outer(paste0(colnames(endo),"_L"),1:p,paste0))
   X <- cbind(Ylag,merge(Intercept=1, data[(p+1):N,exos]))
   qrdecom <- qr(X)
   Beta <- qr.coef(qrdecom,Y)
@@ -56,7 +56,7 @@ summary.OLS <- function(object){
 
   tb2 <-data.frame(response=factor(rownames(Sigma),levels=rownames(Sigma)),
                    `S.E`=sqrt(diag(Sigma))) |>
-    expand(response,explanatory=rownames(Coef_mat),`S.E`)
+    tidyr::expand(response,explanatory=rownames(Coef_mat),`S.E`)
 
   ans <- bayesVAR:::mat2Longtb(Coef_mat,c("explanatory","response","coef.value"))[c("response","explanatory","coef.value")] |>
     dplyr::right_join(tb2,by=c("response","explanatory")) |>
@@ -128,13 +128,13 @@ plot.OLS <- function(x,y=NULL, ncol.fig=2){
     data <- dplyr::full_join(data,actual,by=c("time","var"))
   }
 
-  ggplot(data=data,aes(time,col=var,group=1))+
-    geom_line(aes(y=med))+
-    geom_ribbon(aes(ymin=lwr,ymax=upr,fill=var),alpha=0.3)+
-    facet_wrap(facets=vars(var),ncol=ncol.fig, scales="free_y")+
-    theme_bw()+labs(y="")+
-    theme(legend.position = "bottom")+
-    {if(!is.null(x$model_var)) geom_point(aes(y=actual))}
+  ggplot2::ggplot(data=data,aes(time,col=var,group=1))+
+            geom_line(aes(y=med))+
+            geom_ribbon(aes(ymin=lwr,ymax=upr,fill=var),alpha=0.3)+
+            facet_wrap(facets=vars(var),ncol=ncol.fig, scales="free_y")+
+            theme_bw()+labs(y="")+
+            theme(legend.position = "bottom")+
+            {if(!is.null(x$model_var)) geom_point(aes(y=actual))}
 
 }
 
@@ -154,7 +154,7 @@ predict.OLS <- function(object, newdata){
   Ynew <- tail(Y,n=p)
   x <- cbind(1,newdata)
   for(i in seq_len(period)){
-    Y_update <- c(tail(Ynew,n=p) %>% rev.zoo() %>% t() %>% as.vector(),x[i,]) %*% Coef_mat %>%
+    Y_update <- c(as.vector(t(zoo::rev.zoo(tail(Ynew,n=p)))),x[i,]) %*% Coef_mat |>
       xts(order.by=index(newdata[i,]))
     Ynew <- rbind(Ynew,Y_update)
   }

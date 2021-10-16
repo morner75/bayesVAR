@@ -40,10 +40,10 @@ IR_mat_generator <- function(names, period, p, Coef_mat, Sigma, type=c("origin",
     res <- rbind(res, cbind( as.data.frame(Ynew[p:(p+period),]), response=colnames(Coef_mat)[i],term=0:period) )
   }
 
-  res1 <- purrr::map(seq_len(period+1), ~(dplyr::filter(res,term==.x-1)) %>%
-                                  dplyr::select(-term) %>%
-                                    tibble::column_to_rownames(var = "response") %>%
-                                    as.data.frame() %>% t())
+  res1 <- purrr::map(seq_len(period+1), ~(dplyr::filter(res,term==.x-1)) |>
+                                  dplyr::select(-term) |>
+                                    tibble::column_to_rownames(var = "response") |>
+                                    as.data.frame() |> t())
 
   if(type=="origin") return(res1)
 
@@ -115,8 +115,8 @@ predict_cond <- function(Y, newdata, condition, Coef_mat, Sigma){
 
   eta_list <- lapply(seq_len(period), function(.x) eta_vec[(1+(.x-1)*ncol(Y)):(.x*ncol(Y))])
 
-  eta_accum=accumulate(eta_list, function(x,y) append(x,y))
-  IRmat_accum=accumulate(IRmat, function(x,y) cbind(y,x))
+  eta_accum <- purrr::accumulate(eta_list, function(x,y) append(x,y))
+  IRmat_accum <- purrr::accumulate(IRmat, function(x,y) cbind(y,x))
 
   cond_shocks <- do.call(rbind,lapply(seq_len(period), function(i) t(IRmat_accum[[i]]%*%eta_accum[[i]]))) |>
                     as.xts(order.by=index(condition))
@@ -204,7 +204,7 @@ NW_Sigma <- function(beta, X, Y){
   Beta <- Coef_vec2mat(beta,k,p,m)
   S.hat.inv <- solve(t(Y-X%*%Beta)%*%(Y-X%*%Beta)+S0)
   alpha.hat <- alpha0 + nrow(Y)
-  rWishart(1,alpha.hat,S.hat.inv)[,,.drop=TRUE] %>% solve()
+  rWishart(1,alpha.hat,S.hat.inv)[,,.drop=TRUE] |> solve()
 }
 
 
