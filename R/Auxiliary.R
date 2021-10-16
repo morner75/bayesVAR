@@ -11,7 +11,7 @@ Coef_mat2list <- function(Coef_mat,m){
   res
 }
 
-Coef_list2mat <- function(Coef_list) do.call(cbind,Coef_list) %>% t()
+Coef_list2mat <- function(Coef_list) do.call(cbind,Coef_list) |> t()
 
 Coef_vec2mat <- function(Coef_vec,k,p,m){
   n=k*p+m

@@ -31,6 +31,8 @@ VAR_OLS(data, p, exos = colnames(data)[ncol(data)], confint = 0.95)
 
 \item{x}{OLS VAR model}
 
+\item{y}{NULL}
+
 \item{ncol.fig}{a integer, number of figures plotted in a row}
 }
 \value{

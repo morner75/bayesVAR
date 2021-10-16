@@ -58,7 +58,7 @@ summary.OLS <- function(object){
                    `S.E`=sqrt(diag(Sigma))) |>
     tidyr::expand(response,explanatory=rownames(Coef_mat),`S.E`)
 
-  ans <- bayesVAR:::mat2Longtb(Coef_mat,c("explanatory","response","coef.value"))[c("response","explanatory","coef.value")] |>
+  ans <- mat2Longtb(Coef_mat,c("explanatory","response","coef.value"))[c("response","explanatory","coef.value")] |>
     dplyr::right_join(tb2,by=c("response","explanatory")) |>
     dplyr::mutate(`Z.value`=`coef.value`/`S.E`,
                   `p.value`=format(1-pnorm(`Z.value`),digits=5,justify="right"))
@@ -83,7 +83,7 @@ impulse_response <- function(object, p, variable, period,
 #' @describeIn impulse_response default method
 impulse_response.default <- function(object, p, variable, period,
                                      type=c("origin","structural"), ncol.fig=2){
-  bayesVAR:::impulse_response.OLS(object, p, variable, period,
+  impulse_response.OLS(object, p, variable, period,
                                   type=c("origin","structural"), ncol.fig=2)
 }
 
@@ -112,9 +112,10 @@ impulse_response.OLS <- function(object, p, variable, period,
 
 #' @describeIn VAR_OLS Summary plot
 #' @param x OLS VAR model
+#' @param y NULL
 #' @param ncol.fig a integer, number of figures plotted in a row
 #' @export
-plot.OLS <- function(x,y=NULL, ncol.fig=2){
+plot.OLS <- function(x, y=NULL, ncol.fig=2){
 
   data <- dplyr::mutate(x$interval, time=as.yearqtr(time))
 

@@ -10,6 +10,8 @@ provide figures from Bayesian VAR methods}
 \arguments{
 \item{x}{Bayesian VAR model}
 
+\item{y}{NULL}
+
 \item{ncol.fig}{a integer, number of figures plotted in a row}
 }
 \description{

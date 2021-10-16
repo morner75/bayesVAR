@@ -57,6 +57,7 @@ VAR_bayes <- function(data, p, exos=colnames(data)[ncol(data)], N=1500, warmup=5
 #
 #' provide figures from Bayesian VAR methods
 #' @param x Bayesian VAR model
+#' @param y NULL
 #' @param ncol.fig a integer, number of figures plotted in a row
 #' @export
 plot.bayesVAR <- function(x, y=NULL, ncol.fig=2){
