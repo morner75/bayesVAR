@@ -25,9 +25,8 @@ VAR_bayes <- function(data, p, exos=colnames(data)[ncol(data)], N=1500, warmup=5
   lambdas <- minnesota_par$lambdas
 
   par.samples <- list(Coef_mat=vector("list", length=N), Sigma=vector("list", length=N))
-
   for(i in seq_len(N)) {
-    Coef_mat <- NW_beta(Sigma, X, Y, rho=rho, lambdas=lambdas) |> Coef_vec2mat(k,p,m)
+    Coef_mat <- NW_beta(Sigma, X, Y, rho=rho, lambdas=lambdas,p=p,m=m) |> Coef_vec2mat(k,p,m)
     Sigma <- NW_Sigma(beta, X, Y)
     par.samples$Coef_mat[[i]] <- Coef_mat
     par.samples$Sigma[[i]] <- Sigma

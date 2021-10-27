@@ -98,14 +98,13 @@ predict_cond <- function(Y, newdata, condition, Coef_mat, Sigma){
   cond.var <- colnames(condition)
   pred_wo_shock <- predict_simple(Y, newdata, Coef_mat) |>  tail(n=period)
   r <-  vapply(seq_len(period), function(.x)
-                coredata(condition - pred_wo_shock[,cond.var])[.x,],FUN.VALUE = numeric(2)) |>
+                coredata(condition - pred_wo_shock[,cond.var])[.x,],FUN.VALUE = numeric(ncol(condition))) |>
         as.vector()
 
   IRmat <- IR_mat_generator(names=colnames(Y), period=(period-1), p=(nrow(Coef_mat)-ncol(newdata)-1)/ncol(Y), Coef_mat=Coef_mat,Sigma=Sigma,type="chol")
 
 
-  R <- Reduce(`+`,lapply(seq_along(IRmat), function(i) diag2(period-i+1, period)%x%IRmat[[i]][cond.var,]))
-
+  R <- Reduce(`+`,lapply(seq_along(IRmat), function(i) diag2(period-i+1, period)%x%IRmat[[i]][cond.var,,drop=F]))
 
   V1 <- svd(R,nv=dim(R)[2])$v[,1:dim(R)[1]]
   V2 <- svd(R,nv=dim(R)[2])$v[,(dim(R)[1]+1):dim(R)[2]]
@@ -187,8 +186,8 @@ Minnesota_Omega0 <- function(k,p,m,Sigma, lambdas=c(0.1, 0.5, 2, 100)){
 # sampler -------------------------------------------------------------------------------
 
 # beta sampler
-NW_beta <- function(Sigma, X, Y, rho=1, lambdas=c(0.1, 0.5, 2, 100)){
-  k <- ncol(Y) ; p <- ncol(X)%/%ncol(Y) ; m <- ncol(X)%%ncol(Y)
+NW_beta <- function(Sigma, X, Y, rho=1, lambdas=c(0.1, 0.5, 2, 100),p=p,m=m){
+  k <- ncol(Y)
   b0 <- Minnesota_b0(k,p,m,rho=rho)
   Omega0 <- Minnesota_Omega0(k,p,m,Sigma,lambdas=lambdas)
   Omega.bar <- solve(diag(1/Omega0)+kronecker(solve(Sigma),t(X)%*%X))
