@@ -24,7 +24,7 @@ options(warn = -1)
 
 ## 1. 들어가며 (Introduction)
 
-$\texttt{bayesVAR}$ 패키지는 베이지안 벡터자기회귀모형에 대한 추론을 위한 패키지이다.
+`bayesVAR` 패키지는 베이지안 벡터자기회귀모형에 대한 추론을 위한 패키지이다.
 다음과 같이 $k$개의 내생변수와 $p$개의 시차, $m$​개의 외생변수를 갖는 벡터자귀회귀(Vector Autoregressive: VAR) 모형을 고려해 보자.
 $$
 \scriptsize
@@ -267,7 +267,7 @@ $$
 
 
 
-### 2.2.  완전베이즈 접근법: 정규-역위샤트  사전분포 
+### 2.2.  완전베이즈 접근법: Normal-Invese Wishart 사전분포 
 
 이번 절에서는 파라미터 $\bs\beta$ 와 $\bs\Sigma_s$ 모두 확률변수로 간주하고, $\bs\beta$와  $\bs\Sigma_s$의 사후분포를  구해보자.  여기서 문제는 공분산 행렬 $\Sigma_s$의 차원이 너무 크기 때문에 $\Sigma_s$를 직접 추출하는 하는 것보다 차원이 작은 $\bs\Sigma$를 이용하는 방법을 고려한다.  따라서, 우도함수 $L(\bm y\mid \bs\beta,\bs\Sigma)$를  파라미터 $\bs\beta$와 $\bs\Sigma$로 다시 나타내면
 $$\small
@@ -315,7 +315,7 @@ $$
 
 ## 3. 예시 (Example)
 
-`bayesVAR` 패키지는 거시변수 데이터 $\texttt{macrodata}$를 제공하는데, 실질GDP성장율(RGDP_Q), 원달러환율변화율(USDKRW_G) 등 2000년 3분기부터 2021년 2분기까지 주요 분기별 자료를  $\texttt{xts}$ 시계열 형태로 제공한다.
+`bayesVAR` 패키지는 거시변수 데이터 $macrodata$를 제공하는데, 실질GDP성장율(RGDP_Q), 원달러환율변화율(USDKRW_G) 등 2000년 3분기부터 2021년 2분기까지 주요 분기별 자료를  $\texttt{xts}$ 시계열 형태로 제공한다.
 
 ```{r}
 suppressMessages(library(bayesVAR))
@@ -324,11 +324,13 @@ class(macrodata)
 tail(macrodata)
 ```
 
-이제 실질GDP(RGDP_G), 원달러환율(USDKRW_G)가 내생변수이고, 콜금리(INT_CALL)가 외생변수인 시차 2인 VAR모형을 `bayesVAR` 패키지를 이용하여 추론해 보자. 
+이제 실질GDP증가율(RGDP_G), 원달러환율변화율(USDKRW_G)이 내생변수이고, 콜금리(INT_CALL)가 외생변수인 시차 $p=4$인 VAR모형을 `bayesVAR` 패키지를 이용하여 추론해 보자. 세 거시변수의 움직임은 다음과 같다.
 ```{r, fig.height=4, fig.width=7}
 data <- macrodata[,c("RGDP_Q_G","USDKRW_G","INT_CALL")]
 plot.xts(data,multi.panel=TRUE,yaxis.same = FALSE)
 ```
+
+$VAR\_bayes$함수는 `bayesVAR` 패키지에서 베이지안 추론을 위한 기본 함수이며, Minnesota 사전분포와 Normal-Wishart 사전분포를 결합하여 사후분포를 Gibbs 샘플링 기법을 이용하여 추정한다. 추정 결과로  $VAR\_bayes$함수는 $bayesVAR$ 객체를 제공하는데, 이를 개체를 이용하여 기본적인 파라미터에 대한 추론, (조건부) 예측 및 충격-반응(impulse-response) 함수 등을 구할 수 있다.  여기서 $p$는 시차, $N$은 Gibbs sampling의 표본수, $waramup$은 분포의 수렴을 위해 최종 표본에서 제외할 표본수, $exos$는 외생변수, $minnesota\_par$는 Minnesota 사전분포의 각 파라미터 값을 의미한다. $bayesVAR$ 객체에 $plot$ 함수를 적용하면 추론 결과 얻어진 각 내생변수의 사후분포 평균과 95% 확률구간을 보여준다. 
 
 ```{r, fig.height=4, fig.width=7}
 # Bayesian VAR
@@ -338,14 +340,19 @@ class(object)
 bayesVAR:::plot.bayesVAR(object, ncol.fig = 2)
 ```
 
-
+VAR모형은 주로 관측되지 않은 시계열에 대한 예측을 위하여 이용된다. 미레 시점에 대한 예측은 크게 외생변수가 주어졌을 때 내생변수 전체를 예측하는 문제(unconditional prediction)와 내생변수 중 일부에 대하여 특정 값을 전제하고 다른 내생변수들의 움직임을 예측하는 문제(conditional prediction)로 나눌 수 있다. 
+예측에 사용되는 함수는 일반적인 $predict$ 함수를 이용한다. 이 때 `bayesVAR` 패키지에서는  외생변수의 미래값과 내셩변수의 미래 조건값 모두 $\texttt{xts}$ 형태로  입력해야 한다.
+예측의 결과는 각 내생변수의 미래 시점의 사후분포를 제공하고, $plot$함수를 적용하면 예측시점의 사후분포 평균 및 95% 확률구간을 제공한다.
 ```{r, fig.height=4, fig.width=7}
 # unconditional forecasting
-newdata <- xts(data.frame(INT_CALL=c(0.81,0.91,1.0,1.2)),order.by=as.yearqtr(seq(2021.5,2022.25,by=0.25)))
+# newdata: exogenous variable
+newdata <- xts(data.frame(INT_CALL=c(0.81,0.91,1.0,1.2)),
+               order.by=as.yearqtr(seq(2021.5,2022.25,by=0.25)))
 pred2 <- bayesVAR:::predict.bayesVAR(object, newdata=newdata)
 bayesVAR:::plot.bayesVAR(pred2,ncol.fig=2)
+pred2$fitted
 ```
-
+조건부 예측은 무조건부 예측과 유사하는 아래와 같이 특정 시계열이 이용자가 주어진 경로를 따라 움직일 때, 다른 변수들의 움직을 추정한다는 점에서 차이가 있다. 
 ```{r, fig.height=4, fig.width=7}
 # conditional forecasting
 condition <- xts(data.frame(RGDP_Q_G = c(4.3,0.5,-4.5,-2.3)),
@@ -353,6 +360,6 @@ condition <- xts(data.frame(RGDP_Q_G = c(4.3,0.5,-4.5,-2.3)),
 
 pred3 <- bayesVAR:::predict.bayesVAR(object, newdata=newdata, condition=condition)
 bayesVAR:::plot.bayesVAR(pred3,ncol.fig=2)
-pred2$fitted
+pred3$fitted
 
 ```
