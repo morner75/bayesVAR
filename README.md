@@ -6,4 +6,4 @@ The main functions are focused on conditional forecasting given structural shock
 
 ### limitations
 This package is developed with only $\texttt{R}$, and so the implementation of the function may seem to be slow. 
-I have a plan to write the Monte Carlo simuation part of the package with $\texttt{C++}$, but it may take time compared to other priorities.
+I have a plan to write the Monte Carlo simuation part of the package with $\texttt{C++}$, but it may take time considering other priorities.
